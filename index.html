@@ -1,85 +1,86 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>대한민국 룰렛 여행</title>
+<title>대한민국 전체 랜덤 룰렛</title>
 
 <style>
-body {
+body{
   text-align:center;
-  font-family:-apple-system;
-  background:#111;
+  font-family:-apple-system, BlinkMacSystemFont;
+  background:linear-gradient(135deg,#141e30,#243b55);
   color:white;
+  padding:20px;
 }
-
-canvas {
-  margin-top:20px;
+#wheel{
+  width:300px;
+  height:300px;
+  border-radius:50%;
+  border:6px solid white;
+  margin:20px auto;
+  position:relative;
+  transition:transform 3s cubic-bezier(.17,.67,.83,.67);
 }
-
+#pointer{
+  width:0;height:0;
+  border-left:15px solid transparent;
+  border-right:15px solid transparent;
+  border-bottom:30px solid red;
+  margin:auto;
+}
 button{
-  padding:12px 25px;
-  font-size:18px;
+  padding:10px 20px;
+  margin:10px;
   border:none;
   border-radius:20px;
-  background:#ffcc00;
-  margin-top:20px;
+  font-weight:bold;
 }
-
-#result{
-  margin-top:20px;
-  font-size:22px;
-}
-
-#mapWrapper{
+#mapContainer{
   position:relative;
-  margin:auto;
-  margin-top:20px;
+  display:inline-block;
+}
+#mapImage{
   width:350px;
+  border-radius:10px;
 }
-
-#map{
-  width:100%;
-}
-
-.marker{
-  position:absolute;
-  width:14px;
-  height:14px;
+#dot{
+  width:12px;
+  height:12px;
   background:red;
   border-radius:50%;
-  transform:translate(-50%,-50%);
-  animation:pulse 1s infinite;
+  position:absolute;
+  display:none;
 }
-
-@keyframes pulse{
-  0%{box-shadow:0 0 0 0 rgba(255,0,0,0.7);}
-  70%{box-shadow:0 0 0 15px rgba(255,0,0,0);}
-  100%{box-shadow:0 0 0 0 rgba(255,0,0,0);}
+#result{
+  font-size:22px;
+  margin-top:15px;
 }
 </style>
 </head>
 <body>
 
-<h1>🎡 대한민국 룰렛</h1>
+<h2>🇰🇷 대한민국 랜덤 룰렛</h2>
 
-<canvas id="wheel" width="320" height="320"></canvas>
-<br>
-<button onclick="spin()">돌리기</button>
+<div id="pointer"></div>
+<div id="wheel"></div>
+
+<button onclick="spinProvince()">1️⃣ 도 돌리기</button>
+<button onclick="spinCity()">2️⃣ 지역 돌리기</button>
 
 <div id="result"></div>
 
-<div id="mapWrapper">
-  <img id="map" src="https://upload.wikimedia.org/wikipedia/commons/5/51/South_Korea_blank_map.svg">
+<div id="mapContainer">
+  <img id="mapImage">
+  <div id="dot"></div>
 </div>
 
 <script>
-
-// ===== 전체 지역 데이터 =====
-const regions = {
+// 대한민국 시·군·구 전체 (간략 예시, 필요시 더 세분화 가능)
+const regions={
 "서울특별시":["종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"],
 "부산광역시":["중구","서구","동구","영도구","부산진구","동래구","남구","북구","해운대구","사하구","금정구","강서구","연제구","수영구","사상구","기장군"],
-"대구광역시":["중구","동구","서구","남구","북구","수성구","달서구","달성군","군위군"],
+"대구광역시":["중구","동구","서구","남구","북구","수성구","달서구","달성군"],
 "인천광역시":["중구","동구","미추홀구","연수구","남동구","부평구","계양구","서구","강화군","옹진군"],
 "광주광역시":["동구","서구","남구","북구","광산구"],
 "대전광역시":["동구","중구","서구","유성구","대덕구"],
@@ -96,96 +97,66 @@ const regions = {
 "제주특별자치도":["제주시","서귀포시"]
 };
 
-// ===== 지도 좌표 (도 단위 중심 좌표 비율값) =====
-const provinceCoords={
-"서울특별시":[0.48,0.32],
-"부산광역시":[0.63,0.75],
-"대구광역시":[0.58,0.65],
-"인천광역시":[0.43,0.32],
-"광주광역시":[0.42,0.70],
-"대전광역시":[0.50,0.55],
-"울산광역시":[0.66,0.67],
-"세종특별자치시":[0.50,0.50],
-"경기도":[0.48,0.35],
-"강원특별자치도":[0.63,0.35],
-"충청북도":[0.55,0.52],
-"충청남도":[0.45,0.55],
-"전북특별자치도":[0.42,0.63],
-"전라남도":[0.40,0.75],
-"경상북도":[0.65,0.50],
-"경상남도":[0.60,0.72],
-"제주특별자치도":[0.48,0.92]
+// 지도 좌표 (임의, 예시)
+const coords={
+"서울특별시":{x:150,y:80},
+"부산광역시":{x:260,y:250},
+"대구광역시":{x:220,y:200},
+"인천광역시":{x:100,y:90},
+"광주광역시":{x:140,y:270},
+"대전광역시":{x:180,y:160},
+"울산광역시":{x:260,y:210},
+"세종특별자치시":{x:180,y:150},
+"경기도":{x:150,y:100},
+"강원특별자치도":{x:230,y:60},
+"충청북도":{x:190,y:130},
+"충청남도":{x:170,y:150},
+"전북특별자치도":{x:140,y:180},
+"전라남도":{x:120,y:270},
+"경상북도":{x:230,y:160},
+"경상남도":{x:220,y:220},
+"제주특별자치도":{x:150,y:320}
 };
 
-const canvas=document.getElementById("wheel");
-const ctx=canvas.getContext("2d");
-let angle=0;
-let spinning=false;
-const provinces=Object.keys(regions);
+let currentList=[];
+let selectedProvince="";
+let rotation=0;
 
-function drawWheel(){
-  const arc=2*Math.PI/provinces.length;
-  provinces.forEach((p,i)=>{
-    ctx.beginPath();
-    ctx.fillStyle=`hsl(${i*20},70%,50%)`;
-    ctx.moveTo(160,160);
-    ctx.arc(160,160,150,angle+i*arc,angle+(i+1)*arc);
-    ctx.fill();
-    ctx.save();
-    ctx.translate(160,160);
-    ctx.rotate(angle+i*arc+arc/2);
-    ctx.fillStyle="white";
-    ctx.fillText(p,80,5);
-    ctx.restore();
-  });
-}
-
-function spin(){
- if(spinning)return;
- spinning=true;
- let speed=0.3;
- let duration=3000;
- let start=Date.now();
-
- function animate(){
-  let now=Date.now();
-  let elapsed=now-start;
-  if(elapsed<duration){
-    angle+=speed;
-    speed*=0.99;
-    ctx.clearRect(0,0,320,320);
-    drawWheel();
-    requestAnimationFrame(animate);
-  }else{
-    spinning=false;
-    selectResult();
+function createWheel(items){
+  const wheel=document.getElementById("wheel");
+  let gradient="conic-gradient(";
+  const step=360/items.length;
+  for(let i=0;i<items.length;i++){
+    gradient+=`hsl(${i*step},70%,50%) ${i*step}deg ${(i+1)*step}deg`;
+    if(i<items.length-1) gradient+=",";
   }
- }
- animate();
+  gradient+=")";
+  wheel.style.background=gradient;
+  currentList=items;
 }
 
-function selectResult(){
- let index=Math.floor((2*Math.PI-angle%(2*Math.PI))/(2*Math.PI)*provinces.length)%provinces.length;
- let province=provinces[index];
- let cities=regions[province];
- let city=cities[Math.floor(Math.random()*cities.length)];
- document.getElementById("result").innerHTML=`📍 ${province} - ${city}`;
- showMarker(province);
+function spinProvince(){
+  const provinces=Object.keys(regions);
+  createWheel(provinces);
+  spin(provinces,"province");
 }
 
-function showMarker(province){
- document.querySelectorAll(".marker").forEach(m=>m.remove());
- const coords=provinceCoords[province];
- const map=document.getElementById("map");
- const marker=document.createElement("div");
- marker.className="marker";
- marker.style.left=(coords[0]*map.clientWidth)+"px";
- marker.style.top=(coords[1]*map.clientHeight)+"px";
- document.getElementById("mapWrapper").appendChild(marker);
+function spinCity(){
+  if(!selectedProvince){
+    alert("도 먼저 선택!");
+    return;
+  }
+  createWheel(regions[selectedProvince]);
+  spin(regions[selectedProvince],"city");
 }
 
-drawWheel();
+function spin(list,type){
+  const wheel=document.getElementById("wheel");
+  const randomIndex=Math.floor(Math.random()*list.length);
+  const degree=360/list.length;
+  rotation+=360*5+(360-randomIndex*degree-degree/2);
+  wheel.style.transform=`rotate(${rotation}deg)`;
 
-</script>
-</body>
-</html>
+  setTimeout(()=>{
+    const result=list[randomIndex];
+    if(type==="province"){
